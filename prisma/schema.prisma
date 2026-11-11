@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  EDITOR
+  COMMENTER
+  VIEWER
+}
+
+model User {
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  password    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  ownedWorkspaces Workspace[] @relation("WorkspaceOwner")
+  memberships    WorkspaceMember[]
+  createdPages   Page[] @relation("PageCreator")
+  comments       Comment[]
+  versions       PageVersion[]
+}
+
+model Workspace {
+  id          String   @id @default(cuid())
+  name        String
+  ownerId     String
+  createdAt   DateTime @default(now())
+
+  owner       User @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  members     WorkspaceMember[]
+  pages       Page[]
+}
+
+model WorkspaceMember {
+  id          String     @id @default(cuid())
+  userId      String
+  workspaceId String
+  role        MemberRole @default(VIEWER)
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+}
+
+model Page {
+  id                 String   @id @default(cuid())
+  title              String   @default("Untitled")
+  content            Json?
+  collaborationState Bytes?
+  workspaceId        String
+  creatorId          String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator     User      @relation("PageCreator", fields: [creatorId], references: [id])
+  comments    Comment[]
+  versions    PageVersion[]
+}
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  pageId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  page      Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  author    User @relation(fields: [userId], references: [id])
+}
+
+model PageVersion {
+  id        String   @id @default(cuid())
+  pageId    String
+  userId    String
+  content   Json
+  createdAt DateTime @default(now())
+
+  page      Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  creator   User @relation(fields: [userId], references: [id])
+}
